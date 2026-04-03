@@ -2,6 +2,8 @@
 #include <concepts>
 #include <vector>
 #include <cmath>
+#include <fstream>
+
 constexpr double G = 1.0;
 
 struct Cialo {
@@ -14,20 +16,30 @@ struct Cialo {
     double ay;
 };
 
-void obliczPrzyspieszenie(Cialo& a, const Cialo& b) {
-    double dx = b.x - a.x;
-    double dy = b.y - a.y;
+void obliczPrzyspieszenie(std::vector<Cialo>& ps) {
+    // softening
+    double eps2 = 0.01;
 
-    double r2 = dx*dx + dy*dy;
-    double r = std::sqrt(r2);
+    for (std::size_t i = 0; i < ps.size(); ++i) {
+        for (std::size_t j = i + 1; j < ps.size(); ++j) {
+            double dx = ps[j].x - ps[i].x;
+            double dy = ps[j].y - ps[i].y;
 
-    if (r == 0.0) return;
+            double r2 = dx*dx + dy*dy + eps2;
+            double r = std::sqrt(r2);
 
-    double factor = G * b.m / (r * r2);
+            double factor_i = G * ps[j].m / (r * r2);
+            double factor_j = G * ps[i].m / (r * r2);
 
-    a.ax += factor * dx;
-    a.ay += factor * dy;
+            ps[i].ax += factor_i * dx;
+            ps[i].ay += factor_i * dy;
+
+            ps[j].ax -= factor_j * dx;
+            ps[j].ay -= factor_j * dy;
+        }
+    }
 }
+
 
 void aktualizuj(Cialo& c, double dt) {
     c.vx += c.ax * dt;
@@ -43,23 +55,38 @@ void aktualizuj(Cialo& c, double dt) {
 int main() {
 
     double dt = 0.1;
-
-    Cialo a{5.0, 0.0, 0.0};
-    Cialo b{10.0, 1.0, 0.0};
+    const int steps = 500;
 
 
-    for (int step = 0; step < 5; ++step) {
-        obliczPrzyspieszenie(a, b);
-        obliczPrzyspieszenie(b, a);
+    std::vector<Cialo> ps;
+    ps.push_back({1.0,  0.97000436, -0.24308753,  0.93240737/2,  0.86473146/2, 0.0, 0.0});
+    ps.push_back({1.0, -0.97000436,  0.24308753,  0.93240737/2,  0.86473146/2, 0.0, 0.0});
+    ps.push_back({1.0,  0.0,         0.0,         -0.93240737,  -0.86473146,   0.0, 0.0});  
 
-        aktualizuj(a, dt);
-        aktualizuj(b, dt);
-
-        std::cout << "Krok " << step << "\n";
-        std::cout << "a: (" << a.x << ", " << a.y << ")\n";
-        std::cout << "b: (" << b.x << ", " << b.y << ")\n";
-        std::cout << "------------------\n";
+    // zapis do pliku
+    std::ofstream file("nbody_2d.csv");
+    file << "t";
+    for (std::size_t i = 0; i < ps.size(); ++i) {
+    file << ",x" << i << ",y" << i << ",px" << i << ",py" << i;
     }
+    file << "\n";
+    for (int step = 0; step < steps; ++step) {
+        double t = step * dt;
 
+        obliczPrzyspieszenie(ps);
+
+        for (auto& p : ps) {
+            aktualizuj(p, dt);
+        }
+
+        // zapis do pliku
+        file << t;
+        for (std::size_t i = 0; i < ps.size(); ++i) {
+            file << "," << ps[i].x << "," << ps[i].y << "," << ps[i].m * ps[i].vx << "," << ps[i].m * ps[i].vy;
+        }
+    file << "\n";
+}
+    std::cout << "Saved: nbody_2d.csv\n";
+    file.close();
     return 0;
 }
