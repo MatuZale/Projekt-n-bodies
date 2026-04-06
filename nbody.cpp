@@ -1,5 +1,4 @@
 #include <iostream>
-#include <concepts>
 #include <vector>
 #include <cmath>
 #include <fstream>
@@ -8,17 +7,28 @@ constexpr double G = 1.0;
 
 struct Cialo {
     double m;
-    double x;
-    double y;
-    double vx;
-    double vy;
-    double ax;
-    double ay;
+    double x, y;
+    double vx, vy;
+    double ax, ay;
+
+    void kick(double dt) {
+        vx += ax * dt * 0.5;
+        vy += ay * dt * 0.5;
+    }
+
+    void drift(double dt) {
+        x += vx * dt;
+        y += vy * dt;
+    }
 };
 
 void obliczPrzyspieszenie(std::vector<Cialo>& ps) {
-    // softening
-    double eps2 = 0.01;
+    double eps2 = 0.001;
+
+    for (auto& p : ps) {
+        p.ax = 0.0;
+        p.ay = 0.0;
+    }
 
     for (std::size_t i = 0; i < ps.size(); ++i) {
         for (std::size_t j = i + 1; j < ps.size(); ++j) {
@@ -28,37 +38,27 @@ void obliczPrzyspieszenie(std::vector<Cialo>& ps) {
             double r2 = dx*dx + dy*dy + eps2;
             double r = std::sqrt(r2);
 
-            double factor_i = G * ps[j].m / (r * r2);
-            double factor_j = G * ps[i].m / (r * r2);
+            double factor = G / (r * r2);
 
-            ps[i].ax += factor_i * dx;
-            ps[i].ay += factor_i * dy;
+            double fx = factor * dx;
+            double fy = factor * dy;
 
-            ps[j].ax -= factor_j * dx;
-            ps[j].ay -= factor_j * dy;
+            ps[i].ax += fx * ps[j].m;
+            ps[i].ay += fy * ps[j].m;
+
+            ps[j].ax -= fx * ps[i].m;
+            ps[j].ay -= fy * ps[i].m;
         }
     }
 }
 
-
-void aktualizuj(Cialo& c, double dt) {
-    c.vx += c.ax * dt;
-    c.vy += c.ay * dt;
-
-    c.x += c.vx * dt;
-    c.y += c.vy * dt;
-
-    c.ax = 0;
-    c.ay = 0;
-}
-
 int main() {
 
-    double dt = 0.1;
-    const int steps = 500;
-
+    double dt = 0.01;
+    const int steps = 5000;
 
     std::vector<Cialo> ps;
+    // stabilna orbita dla 3 cial 2000
     ps.push_back({1.0,  0.97000436, -0.24308753,  0.93240737/2,  0.86473146/2, 0.0, 0.0});
     ps.push_back({1.0, -0.97000436,  0.24308753,  0.93240737/2,  0.86473146/2, 0.0, 0.0});
     ps.push_back({1.0,  0.0,         0.0,         -0.93240737,  -0.86473146,   0.0, 0.0});  
@@ -70,13 +70,22 @@ int main() {
     file << ",x" << i << ",y" << i << ",px" << i << ",py" << i;
     }
     file << "\n";
+    obliczPrzyspieszenie(ps);
     for (int step = 0; step < steps; ++step) {
         double t = step * dt;
+
+        for (auto& p : ps) {
+            p.kick(dt);
+        }
+
+        for (auto& p : ps) {
+            p.drift(dt);
+        }
 
         obliczPrzyspieszenie(ps);
 
         for (auto& p : ps) {
-            aktualizuj(p, dt);
+            p.kick(dt);
         }
 
         // zapis do pliku
