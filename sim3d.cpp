@@ -122,7 +122,7 @@ int main() {
 
     // okno
     sf::Window window(
-        sf::VideoMode({800, 600}),
+        sf::VideoMode({1920, 1080}),
         "N-body 3D",
         sf::Style::Default,
         sf::State::Windowed,
@@ -158,15 +158,16 @@ int main() {
     sf::Clock clock;
 
     std::vector<Cialo> ciala = {
-    {1.0,  1.0,  0.0,  0.5,   0.0,  0.7, -0.3,  0,0,0},
-    {1.0, -1.0,  0.0, -0.5,   0.0, -0.7,  0.3,  0,0,0},
-    {1.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0,0,0}
+    {1.0,  1.0,  1.0,  1.0,   0.0,  0.5, -0.5, 0,0,0},
+    {1.0, -1.0, -1.0,  1.0,   0.0, -0.5,  0.5, 0,0,0},
+    {1.0, -1.0,  1.0, -1.0,   0.5,  0.0, -0.5, 0,0,0},
+    {1.0,  1.0, -1.0, -1.0,  -0.5,  0.0,  0.5, 0,0,0}
     };
 
     obliczPrzyspieszenie(ciala);
 
     // trajektoria
-    const int MAX_HISTORY = 1000;
+    const int MAX_HISTORY = 2000;
     std::vector<std::deque<glm::vec3>> historie(ciala.size());
 
     // główna pętla
@@ -194,6 +195,13 @@ int main() {
                    lastMousePos = current;
                }
            }
+           if (auto* e = event->getIf<sf::Event::MouseWheelScrolled>()) {
+                radius -= e->delta * 0.5f;   // czułość zooma
+
+            // zabezpieczenie
+                radius = glm::clamp(radius, 1.0f, 50.0f);
+            }
+
             if (event->is<sf::Event::Closed>()) window.close();
         }
 
