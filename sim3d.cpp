@@ -9,6 +9,7 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <deque>
 
 #include "nbody.h"
 
@@ -113,7 +114,6 @@ std::vector<unsigned int> generateSphereIndices(int stacks, int slices) {
 int main() {
 
     // myszka
-
     float yaw   = 0.0f;
     float pitch = 0.0f;
     float radius = 5.0f;
@@ -158,12 +158,16 @@ int main() {
     sf::Clock clock;
 
     std::vector<Cialo> ciala = {
-    {1.0,  0.97000436, -0.24308753, 0.0,  0.93240737/2,  0.86473146/2, 0.0, 0.0, 0.0, 0.0},
-    {1.0, -0.97000436,  0.24308753, 0.0,  0.93240737/2,  0.86473146/2, 0.0, 0.0, 0.0, 0.0},
-    {1.0,  0.0,         0.0,        0.0, -0.93240737,   -0.86473146,   0.0, 0.0, 0.0, 0.0}
+    {1.0,  1.0,  0.0,  0.5,   0.0,  0.7, -0.3,  0,0,0},
+    {1.0, -1.0,  0.0, -0.5,   0.0, -0.7,  0.3,  0,0,0},
+    {1.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0,0,0}
     };
 
     obliczPrzyspieszenie(ciala);
+
+    // trajektoria
+    const int MAX_HISTORY = 1000;
+    std::vector<std::deque<glm::vec3>> historie(ciala.size());
 
     // główna pętla
     while (window.isOpen()) {
@@ -212,11 +216,18 @@ int main() {
         glBindVertexArray(VAO);
 
         // krok fizyki
-        double dt = 0.001;
+        double dt = 0.005;
         for (auto& c : ciala) c.kick(dt);
         for (auto& c : ciala) c.drift(dt);
         obliczPrzyspieszenie(ciala);
         for (auto& c : ciala) c.kick(dt);
+
+        // historia trajektorii
+        for (std::size_t i = 0; i < ciala.size(); i++) {
+            historie[i].push_back(glm::vec3(ciala[i].x, ciala[i].y, ciala[i].z));
+            if (historie[i].size() > MAX_HISTORY)
+                historie[i].pop_front();
+        }
 
         // rysowanie
         for (auto& c : ciala) {
@@ -227,6 +238,35 @@ int main() {
         
             glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(MVP));
             glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+        }
+
+        for (auto& historia : historie) {
+            if (historia.size() < 2) continue;
+
+            std::vector<float> punkty;
+            for (auto& p : historia) {
+                punkty.push_back(p.x);
+                punkty.push_back(p.y);
+                punkty.push_back(p.z);
+            }
+        
+            GLuint trailVAO, trailVBO;
+            glGenVertexArrays(1, &trailVAO);
+            glGenBuffers(1, &trailVBO);
+        
+            glBindVertexArray(trailVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, trailVBO);
+            glBufferData(GL_ARRAY_BUFFER, punkty.size() * sizeof(float), punkty.data(), GL_DYNAMIC_DRAW);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(0);
+        
+            glm::mat4 MVP = proj * view * glm::mat4(1.0f);
+            glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(MVP));
+            glDrawArrays(GL_LINE_STRIP, 0, punkty.size() / 3);
+        
+            glDeleteVertexArrays(1, &trailVAO);
+            glDeleteBuffers(1, &trailVBO);
+            glBindVertexArray(0);
         }
 
         window.display();
