@@ -49,3 +49,23 @@ void obliczPrzyspieszenie(std::vector<Cialo>& ps) {
         }
     }
 }
+
+double obliczEnergie(const std::vector<Cialo>& ps) {
+    double E = 0.0;
+    for (const auto& p : ps) {
+        double v2 = p.vx * p.vx + p.vy * p.vy + p.vz * p.vz;
+        E += 0.5 * p.m * v2;
+    }
+
+    for (std::size_t i = 0; i < ps.size(); ++i) {
+        for (std::size_t j = i + 1; j < ps.size(); ++j) {
+            double dx = ps[j].x - ps[i].x;
+            double dy = ps[j].y - ps[i].y;
+            double dz = ps[j].z - ps[i].z;
+
+            double r = std::sqrt(dx * dx + dy * dy + dz * dz);
+            E -= G * ps[i].m * ps[j].m / r;
+        }
+    }
+    return E;
+}

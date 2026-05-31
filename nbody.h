@@ -14,3 +14,5 @@ struct Cialo {
 };
 
 void obliczPrzyspieszenie(std::vector<Cialo>& ps);
+
+double obliczEnergie(const std::vector<Cialo>& ps);

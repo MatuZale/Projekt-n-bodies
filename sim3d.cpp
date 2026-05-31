@@ -141,6 +141,7 @@ int main() {
     float pitch = 0.0f;
     float radius = 5.0f;
     bool mousePressed = false;
+    int frameCount = 0;
     sf::Vector2i lastMousePos;
 
     sf::Window window(sf::VideoMode({1920, 1080}), "N-body 3D", 
@@ -176,9 +177,12 @@ int main() {
     const int MAX_HISTORY = 2000;
 
     std::vector<Cialo> ciala = {
-    {1.0, -1.0,  0.0, 0.0,  0.392955,  0.097579, 0.0},
-    {1.0,  1.0,  0.0, 0.0,  0.392955,  0.097579, 0.0},
-    {1.0,  0.0,  0.0, 0.0, -0.78591,  -0.195158, 0.0}
+    // Ciało 1
+    {1.0,  -0.97000436,  0.24308753,  0.0,   0.4662036850,  0.4323657300,  0.0, 0,0,0},
+    // Ciało 2 (symetryczne)
+    {1.0,   0.97000436, -0.24308753,  0.0,   0.4662036850,  0.4323657300,  0.0, 0,0,0},
+    // Ciało 3 (w środku)
+    {1.0,   0.0,          0.0,         0.0,  -0.93240737,   -0.86473146,   0.0, 0,0,0}
     };
 
     std::vector<GLuint> trailVAOs(ciala.size());
@@ -210,8 +214,37 @@ int main() {
     while (window.isOpen()) {
         // --- Eventy ---
         while (auto event = window.pollEvent()) {
-            // ... Twój kod eventów (mouse) bez zmian ...
-            if (event->is<sf::Event::Closed>()) window.close();
+            // Eventy związane z zamykaniem okna i obsługą myszy
+            if (event->is<sf::Event::Closed>()) {
+                window.close();
+            }
+
+            if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>()) {
+                if (mouse->button == sf::Mouse::Button::Left) {
+                    mousePressed = true;
+                    lastMousePos = sf::Mouse::getPosition(window);
+                }
+            }
+            if (const auto* mouse = event->getIf<sf::Event::MouseButtonReleased>()) {
+                if (mouse->button == sf::Mouse::Button::Left) {
+                    mousePressed = false;
+                }
+            }
+            if (const auto* mouse = event->getIf<sf::Event::MouseMoved>()) {
+                if (mousePressed) {
+                    sf::Vector2i pos = sf::Mouse::getPosition(window);
+                    float dx = pos.x - lastMousePos.x;
+                    float dy = pos.y - lastMousePos.y;
+                    yaw   += dx * 0.005f;
+                    pitch += dy * 0.005f;
+                    pitch = std::clamp(pitch, -PI/2 + 0.1f, PI/2 - 0.1f);
+                    lastMousePos = pos;
+                }
+            }
+            if (const auto* wheel = event->getIf<sf::Event::MouseWheelScrolled>()) {
+                radius -= wheel->delta * 0.5f;
+                radius = std::max(radius, 1.0f);
+            }
         }
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -236,6 +269,11 @@ int main() {
         for (auto& c : ciala) c.drift(dt);
         obliczPrzyspieszenie(ciala);
         for (auto& c : ciala) c.kick(dt);
+                    
+        if (frameCount % 60 == 0) {
+            std::cout << "E = " << obliczEnergie(ciala) << "\n";
+        }
+        frameCount++;
 
         // --- Aktualizacja historii ---
         for (size_t i = 0; i < ciala.size(); i++) {
