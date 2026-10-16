@@ -2,3 +2,6 @@ nbody
 nbody_sfml
 nbody_2d.csv
 *.o
+sim3d
+test_opengl
+.DS_Store
